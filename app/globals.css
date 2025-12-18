@@ -1,0 +1,523 @@
+@import "tailwindcss";
+
+/* ========================================
+   OCEANIDS PREMIUM DESIGN SYSTEM
+   Crafted with precision & soul
+   ======================================== */
+
+:root {
+  /* Ocean Night - Premium Dark Palette */
+  --background: 222 47% 4%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 7%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 7%;
+  --popover-foreground: 210 40% 98%;
+  
+  /* Signature Colors */
+  --primary: 199 89% 48%;       /* Ocean Cyan */
+  --primary-foreground: 222 47% 4%;
+  --secondary: 258 90% 66%;      /* Electric Violet */
+  --secondary-foreground: 210 40% 98%;
+  --accent: 172 66% 50%;         /* Teal Glow */
+  --accent-foreground: 222 47% 4%;
+  
+  /* Neutrals */
+  --muted: 222 47% 11%;
+  --muted-foreground: 215 20% 55%;
+  --border: 222 47% 14%;
+  --input: 222 47% 14%;
+  --ring: 199 89% 48%;
+  
+  /* Semantic */
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --success: 142 76% 36%;
+  --warning: 38 92% 50%;
+  
+  /* Design Tokens */
+  --radius: 0.875rem;
+  
+  /* Gradients */
+  --gradient-ocean: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(258 90% 66%) 50%, hsl(322 84% 55%) 100%);
+  --gradient-glow: linear-gradient(135deg, hsl(199 89% 48% / 0.2) 0%, hsl(258 90% 66% / 0.2) 100%);
+  --gradient-card: linear-gradient(145deg, hsl(222 47% 9%) 0%, hsl(222 47% 5%) 100%);
+  --gradient-shine: linear-gradient(45deg, transparent 0%, hsl(0 0% 100% / 0.03) 50%, transparent 100%);
+  
+  /* Shadows */
+  --shadow-glow: 0 0 60px -15px hsl(199 89% 48% / 0.35);
+  --shadow-card: 0 25px 50px -12px hsl(0 0% 0% / 0.5);
+  --shadow-float: 0 20px 40px -15px hsl(0 0% 0% / 0.3);
+}
+
+.light {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Premium Selection */
+::selection {
+  background: hsl(var(--primary) / 0.3);
+  color: hsl(var(--foreground));
+}
+
+/* ========================================
+   SCROLLBAR - Refined
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+}
+
+/* ========================================
+   GRADIENT UTILITIES
+   ======================================== */
+
+.gradient-ocean {
+  background: var(--gradient-ocean);
+}
+
+.gradient-text {
+  background: var(--gradient-ocean);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-border {
+  position: relative;
+  background: hsl(var(--card));
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--gradient-ocean);
+  opacity: 0.5;
+}
+
+/* ========================================
+   GLASS MORPHISM
+   ======================================== */
+
+.glass {
+  background: hsl(var(--card) / 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.glass-strong {
+  background: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid hsl(var(--border) / 0.8);
+}
+
+/* ========================================
+   CARD STYLES
+   ======================================== */
+
+.card-premium {
+  background: var(--gradient-card);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-premium::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-shine);
+  pointer-events: none;
+}
+
+.card-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-float);
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.card-glow {
+  position: relative;
+}
+
+.card-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--gradient-ocean);
+  opacity: 0;
+  filter: blur(20px);
+  transition: opacity 0.4s ease;
+}
+
+.card-glow:hover::after {
+  opacity: 0.3;
+}
+
+/* ========================================
+   BUTTON ENHANCEMENTS
+   ======================================== */
+
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(0 0% 100% / 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.btn-shine:hover::before {
+  left: 100%;
+}
+
+.btn-glow {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 30px hsl(var(--primary) / 0.5), 0 0 60px hsl(var(--primary) / 0.2);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    filter: brightness(1);
+  }
+  50% { 
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.6);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(0 0% 100% / 0.1),
+    transparent
+  );
+  background-size: 1000px 100%;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out forwards;
+}
+
+.animate-blur-in {
+  animation: blur-in 0.6s ease-out forwards;
+}
+
+/* Stagger delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }
+
+/* ========================================
+   BACKGROUND PATTERNS
+   ======================================== */
+
+.bg-grid {
+  background-image: 
+    linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.bg-dots {
+  background-image: radial-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.bg-noise {
+  position: relative;
+}
+
+.bg-noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.02;
+  pointer-events: none;
+}
+
+/* ========================================
+   HERO SECTION SPECIFIC
+   ======================================== */
+
+.hero-gradient {
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(199 89% 48% / 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 60%, hsl(258 90% 66% / 0.1), transparent),
+    radial-gradient(ellipse 50% 30% at 20% 80%, hsl(322 84% 55% / 0.08), transparent),
+    hsl(var(--background));
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  animation: float 8s ease-in-out infinite;
+}
+
+/* ========================================
+   TEXT UTILITIES
+   ======================================== */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-glow {
+  text-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+}
+
+.text-glow-strong {
+  text-shadow: 
+    0 0 10px hsl(var(--primary) / 0.8),
+    0 0 30px hsl(var(--primary) / 0.5),
+    0 0 60px hsl(var(--primary) / 0.3);
+}
+
+/* ========================================
+   INTERACTIVE ELEMENTS
+   ======================================== */
+
+.link-underline {
+  position: relative;
+}
+
+.link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--gradient-ocean);
+  transition: width 0.3s ease;
+}
+
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* Focus styles */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary));
+}
+
+/* ========================================
+   RESPONSIVE UTILITIES
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .hero-orb {
+    filter: blur(60px);
+    opacity: 0.3;
+  }
+}
