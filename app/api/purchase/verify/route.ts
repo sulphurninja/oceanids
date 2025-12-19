@@ -1,0 +1,200 @@
+import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/db';
+import Account from '@/models/accountModel';
+import Order from '@/models/orderModel';
+
+export const dynamic = 'force-dynamic';
+
+// Orders expire after 30 minutes if not paid
+const ORDER_EXPIRY_MINUTES = 30;
+
+export async function GET(request: NextRequest) {
+  try {
+    await connectDB();
+
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('order_id');
+
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, message: 'Order ID required' },
+        { status: 400 }
+      );
+    }
+
+    // Find the order
+    const order = await Order.findOne({ orderId }).populate('accounts');
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, message: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if order has expired (pending for too long)
+    const orderAge = Date.now() - new Date(order.createdAt).getTime();
+    const orderAgeMinutes = orderAge / (1000 * 60);
+    
+    if (order.paymentStatus === 'pending' && orderAgeMinutes > ORDER_EXPIRY_MINUTES) {
+      // Order expired - release accounts
+      order.paymentStatus = 'failed';
+      order.status = 'cancelled';
+      await order.save();
+
+      await Account.updateMany(
+        { _id: { $in: order.accounts } },
+        { status: 'available', orderId: null }
+      );
+
+      return NextResponse.json({
+        success: false,
+        pending: false,
+        message: 'Order expired. Please try again.',
+      });
+    }
+
+    // Check if already completed
+    if (order.paymentStatus === 'completed' && order.credentialsRevealed) {
+      // Return credentials
+      const accounts = order.accounts.map((acc: any) => ({
+        username: acc.username,
+        password: acc.password,
+        mobileNumber: acc.mobileNumber || '',
+        email: acc.email || '',
+      }));
+
+      return NextResponse.json({
+        success: true,
+        accounts,
+        orderId: order.orderId,
+      });
+    }
+
+    // If already failed, return error
+    if (order.paymentStatus === 'failed') {
+      return NextResponse.json({
+        success: false,
+        pending: false,
+        message: 'Payment failed',
+      });
+    }
+
+    // Check payment status with UPI Gateway
+    const upiGatewayKey = process.env.UPI_GATEWAY_KEY;
+
+    if (!upiGatewayKey) {
+      // Test mode: Check if test payment was completed
+      if (order.paymentStatus === 'completed') {
+        return returnCredentials(order);
+      }
+      
+      return NextResponse.json({
+        success: false,
+        pending: true,
+        message: 'Payment verification pending',
+      });
+    }
+
+    // Verify with UPI Gateway
+    const verifyResponse = await fetch('https://api.ekqr.in/api/check_order_status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        key: upiGatewayKey,
+        client_txn_id: orderId,
+        txn_date: formatDate(order.createdAt),
+      }),
+    });
+
+    const verifyData = await verifyResponse.json();
+
+    if (verifyData.status && verifyData.data?.status === 'success') {
+      // Payment successful - mark as completed and reveal credentials
+      order.paymentStatus = 'completed';
+      order.status = 'delivered';
+      order.credentialsRevealed = true;
+      order.revealedAt = new Date();
+      order.transactionId = verifyData.data.txnId || '';
+      order.upiTxnId = verifyData.data.upi_txn_id || '';
+      order.paymentDetails = verifyData.data;
+      await order.save();
+
+      // Mark accounts as sold
+      await Account.updateMany(
+        { _id: { $in: order.accounts } },
+        { 
+          status: 'sold',
+          soldAt: new Date(),
+        }
+      );
+
+      return returnCredentials(order);
+    } else if (verifyData.data?.status === 'pending' || verifyData.data?.status === 'scanning') {
+      // Still pending
+      return NextResponse.json({
+        success: false,
+        pending: true,
+        message: 'Payment still processing',
+      });
+    } else if (verifyData.data?.status === 'failure' || verifyData.data?.status === 'expired') {
+      // Payment failed - release accounts
+      order.paymentStatus = 'failed';
+      order.status = 'cancelled';
+      await order.save();
+
+      await Account.updateMany(
+        { _id: { $in: order.accounts } },
+        { status: 'available', orderId: null }
+      );
+
+      return NextResponse.json({
+        success: false,
+        pending: false,
+        message: 'Payment failed',
+      });
+    }
+
+    // Unknown status - keep checking
+    return NextResponse.json({
+      success: false,
+      pending: true,
+      message: 'Checking payment status...',
+    });
+
+  } catch (error: any) {
+    console.error('Verify error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Verification error' },
+      { status: 500 }
+    );
+  }
+}
+
+async function returnCredentials(order: any) {
+  await order.populate('accounts');
+  
+  const accounts = order.accounts.map((acc: any) => ({
+    username: acc.username,
+    password: acc.password,
+    mobileNumber: acc.mobileNumber || '',
+    email: acc.email || '',
+  }));
+
+  return NextResponse.json({
+    success: true,
+    accounts,
+    orderId: order.orderId,
+  });
+}
+
+function formatDate(date: Date): string {
+  // Format: DD-MM-YYYY for UPI Gateway
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}

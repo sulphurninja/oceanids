@@ -7,27 +7,36 @@ const orderSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  // User who placed order
+  // User who placed order (optional for anonymous purchases)
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    default: null,
   },
-  // Account purchased
+  // Multiple accounts for bulk purchase
+  accounts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Account',
+  }],
+  // Legacy single account field (backwards compatibility)
   account: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Account',
-    required: true,
   },
   // Account type at time of purchase
   accountType: {
     type: String,
-    required: true,
+    default: 'irctc',
   },
   // Provider (e.g., 'irctc', 'paytm')
   provider: {
     type: String,
     default: 'irctc',
+  },
+  // Quantity
+  quantity: {
+    type: Number,
+    default: 1,
   },
   // Pricing
   amount: {
@@ -42,9 +51,9 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    default: 'cashfree',
+    default: 'upi',
   },
-  // Cashfree payment details
+  // UPI Gateway payment details
   clientTxnId: {
     type: String,
     default: '',
@@ -54,6 +63,10 @@ const orderSchema = new mongoose.Schema({
     default: '',
   },
   transactionId: {
+    type: String,
+    default: '',
+  },
+  upiTxnId: {
     type: String,
     default: '',
   },
@@ -76,12 +89,18 @@ const orderSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
-  // Customer info at time of purchase
+  // Customer info (optional for anonymous)
   customerEmail: {
     type: String,
+    default: '',
   },
   customerName: {
     type: String,
+    default: 'Guest',
+  },
+  customerPhone: {
+    type: String,
+    default: '',
   },
 }, {
   timestamps: true,
@@ -91,8 +110,8 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ user: 1, status: 1 });
 orderSchema.index({ orderId: 1 });
 orderSchema.index({ clientTxnId: 1 });
+orderSchema.index({ paymentStatus: 1 });
 
 const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
 
 export default Order;
-

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       email: acc.email || '',
       notes: acc.notes || '',
       status: 'available',
-      addedBy: user.id,
+      addedBy: user?.id || null,
     }));
 
     // Check for duplicate usernames
