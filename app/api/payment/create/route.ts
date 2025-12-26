@@ -105,8 +105,6 @@ export async function POST(request: NextRequest) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || process.env.NEXT_PUBLIC_APP_URL || '';
-    
-    // Note: We don't use redirect_url because we verify payment directly
 
     const upiResponse = await fetch('https://api.ekqr.in/api/create_order', {
       method: 'POST',
@@ -121,7 +119,7 @@ export async function POST(request: NextRequest) {
         customer_name: 'User',
         customer_email: 'user@example.com',
         customer_mobile: '9999999999',
-        redirect_url: 'https://oceanids.vercel.app',
+        redirect_url: `${appUrl}/api/purchase/callback`,
         udf1: 'N/A',
         udf2: 'N/A',
         udf3: 'N/A',

@@ -95,9 +95,8 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    // Handle malformed URLs from UPI Gateway with multiple ? characters
+    // Handle URL params from UPI Gateway redirect
     let urlString = window.location.href
-    // Fix malformed URL by replacing ? with & after the first ?
     const firstQuestionMark = urlString.indexOf('?')
     if (firstQuestionMark !== -1) {
       const beforeQuery = urlString.substring(0, firstQuestionMark + 1)
@@ -107,20 +106,13 @@ export default function HomePage() {
 
     const url = new URL(urlString)
     const urlParams = url.searchParams
-    // Handle both order_id (from callback) and client_txn_id (from UPI Gateway direct redirect)
+    // Handle both order_id and client_txn_id from redirects
     const paymentOrderId = urlParams.get("order_id") || urlParams.get("client_txn_id")
-    const status = urlParams.get("status")
     
-    if (paymentOrderId && (status === "success" || !status)) { 
-      // If no status param but client_txn_id is present, assume success (UPI Gateway direct redirect)
+    if (paymentOrderId) { 
       setOrderId(paymentOrderId)
       setPurchaseStatus("processing")
       checkPaymentAndGetCredentials(paymentOrderId) 
-    }
-    else if (status === "failed") { 
-      setPurchaseStatus("failed")
-      toast.error("Payment failed.")
-      window.history.replaceState({}, "", "/") 
     }
   }, [])
 

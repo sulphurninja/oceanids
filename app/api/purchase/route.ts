@@ -130,9 +130,6 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Note: We don't use redirect_url because we verify payment directly
-    // This eliminates issues with localhost URLs and webhook dependencies
-    
     console.log('[PURCHASE] UPI Gateway Request:');
     console.log('  - Order ID:', orderId);
     console.log('  - Amount:', amount);
@@ -150,7 +147,7 @@ export async function POST(request: NextRequest) {
         customer_name: 'User',
         customer_email: 'user@example.com',
         customer_mobile: '9999999999',
-        redirect_url: 'https://oceanids.vercel.app',
+        redirect_url: `${appUrl}/api/purchase/callback`,
         udf1: 'N/A',
         udf2: 'N/A',
         udf3: 'N/A',

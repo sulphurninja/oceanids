@@ -3,48 +3,57 @@ import connectDB from '@/lib/db';
 import Account from '@/models/accountModel';
 import Order from '@/models/orderModel';
 
-// UPI Gateway Webhook/Callback
+// UPI Gateway Webhook/Callback Handler
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const body = await request.json();
+    // UPI Gateway sends form-urlencoded data, not JSON
+    const formData = await request.formData();
     
-    console.log('UPI Gateway Callback:', body);
-
-    const { 
-      client_txn_id,
-      status,
-      txnId,
-      upi_txn_id,
-    } = body;
+    const client_txn_id = formData.get('client_txn_id')?.toString();
+    const status = formData.get('status')?.toString();
+    const upi_txn_id = formData.get('upi_txn_id')?.toString();
+    const txnAt = formData.get('txnAt')?.toString();
+    
+    console.log('[WEBHOOK] UPI Gateway Webhook received:');
+    console.log('  - client_txn_id:', client_txn_id);
+    console.log('  - status:', status);
+    console.log('  - upi_txn_id:', upi_txn_id);
 
     if (!client_txn_id) {
+      console.log('[WEBHOOK] No client_txn_id in webhook');
       return NextResponse.json({ success: false, message: 'Invalid callback' });
     }
 
     const order = await Order.findOne({ orderId: client_txn_id });
 
     if (!order) {
+      console.log('[WEBHOOK] Order not found:', client_txn_id);
       return NextResponse.json({ success: false, message: 'Order not found' });
     }
 
     if (order.paymentStatus === 'completed') {
-      // Already processed
+      console.log('[WEBHOOK] Order already completed');
       return NextResponse.json({ success: true, message: 'Already processed' });
     }
 
     const statusLower = (status || '').toLowerCase();
 
     if (statusLower === 'success') {
-      // Payment successful
+      console.log('[WEBHOOK] Payment confirmed for order:', client_txn_id);
       order.paymentStatus = 'completed';
       order.status = 'delivered';
       order.credentialsRevealed = true;
       order.revealedAt = new Date();
-      order.transactionId = txnId || '';
+      order.transactionId = upi_txn_id || '';
       order.upiTxnId = upi_txn_id || '';
-      order.paymentDetails = body;
+      order.paymentDetails = {
+        client_txn_id,
+        status,
+        upi_txn_id,
+        txnAt,
+      };
       await order.save();
 
       // Mark accounts as sold
@@ -56,12 +65,18 @@ export async function POST(request: NextRequest) {
         }
       );
 
+      console.log('[WEBHOOK] Order marked as completed, accounts marked as sold');
       return NextResponse.json({ success: true, message: 'Payment confirmed' });
     } else if (statusLower === 'failure' || statusLower === 'failed' || statusLower === 'expired') {
-      // Payment failed or expired - release accounts back to stock
+      console.log('[WEBHOOK] Payment failed/expired for order:', client_txn_id);
       order.paymentStatus = 'failed';
       order.status = 'cancelled';
-      order.paymentDetails = body;
+      order.paymentDetails = {
+        client_txn_id,
+        status,
+        upi_txn_id,
+        txnAt,
+      };
       await order.save();
 
       // Release accounts back to available
@@ -70,15 +85,14 @@ export async function POST(request: NextRequest) {
         { status: 'available', orderId: null }
       );
 
-      console.log(`Released ${order.accounts?.length || 0} accounts for failed order ${client_txn_id}`);
-
+      console.log(`[WEBHOOK] Released ${order.accounts?.length || 0} accounts for failed order ${client_txn_id}`);
       return NextResponse.json({ success: true, message: 'Payment failed, accounts released' });
     }
 
     return NextResponse.json({ success: true, message: 'Callback received' });
 
   } catch (error: any) {
-    console.error('Callback error:', error);
+    console.error('[WEBHOOK] Error:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }
