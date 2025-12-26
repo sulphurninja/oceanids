@@ -40,6 +40,7 @@ export default function HomePage() {
   const [lookupMode, setLookupMode] = useState(false)
   const [lookupTxnId, setLookupTxnId] = useState("")
   const [lookupLoading, setLookupLoading] = useState(false)
+  const [pendingOrderId, setPendingOrderId] = useState<string>("")
 
   const whatsappNumber = "918004277632"
 
@@ -77,7 +78,11 @@ export default function HomePage() {
     try {
       const res = await fetch("/api/purchase", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quantity }) })
       const data = await res.json()
-      if (data.success && data.paymentUrl) { window.location.href = data.paymentUrl }
+      if (data.success && data.paymentUrl) { 
+        // Track pending order ID for cleanup if user leaves
+        setPendingOrderId(data.orderId)
+        window.location.href = data.paymentUrl 
+      }
       else { toast.error(data.message || "Something went wrong."); setPurchaseStatus("idle") }
     } catch (error) { toast.error("Something went wrong."); setPurchaseStatus("idle") }
   }
@@ -108,6 +113,22 @@ export default function HomePage() {
       setLookupLoading(false)
     }
   }
+
+  // Release reserved IDs when user leaves the page (if payment is still pending)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (pendingOrderId && purchaseStatus === "processing") {
+        // Send async request to cancel order (don't wait for response)
+        navigator.sendBeacon(
+          `/api/purchase/cancel?order_id=${encodeURIComponent(pendingOrderId)}`,
+          JSON.stringify({ orderId: pendingOrderId })
+        )
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [pendingOrderId, purchaseStatus])
 
   const copyToClipboard = (text: string) => { navigator.clipboard.writeText(text); toast.success("Copied!") }
   const copyAllCredentials = () => {
