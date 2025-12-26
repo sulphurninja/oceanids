@@ -107,9 +107,12 @@ export default function HomePage() {
 
     const url = new URL(urlString)
     const urlParams = url.searchParams
-    const paymentOrderId = urlParams.get("order_id"), status = urlParams.get("status")
+    // Handle both order_id (from callback) and client_txn_id (from UPI Gateway direct redirect)
+    const paymentOrderId = urlParams.get("order_id") || urlParams.get("client_txn_id")
+    const status = urlParams.get("status")
     
-    if (paymentOrderId && status === "success") { 
+    if (paymentOrderId && (status === "success" || !status)) { 
+      // If no status param but client_txn_id is present, assume success (UPI Gateway direct redirect)
       setOrderId(paymentOrderId)
       setPurchaseStatus("processing")
       checkPaymentAndGetCredentials(paymentOrderId) 

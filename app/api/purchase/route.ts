@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         customer_name: 'User',
         customer_email: 'user@example.com',
         customer_mobile: '9999999999',
-        redirect_url: 'https://oceanid.shop',
+        redirect_url: 'https://oceanids.vercel.app',
         udf1: 'N/A',
         udf2: 'N/A',
         udf3: 'N/A',
