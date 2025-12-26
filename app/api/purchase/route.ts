@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         p_info: 'IRCTC ID',
         customer_name: 'User',
         customer_email: 'user@example.com',
-        customer_mobile: '9999999999',
+        customer_mobile: '8004277632',
         redirect_url: `${appUrl}/api/purchase/callback`,
         udf1: 'N/A',
         udf2: 'N/A',

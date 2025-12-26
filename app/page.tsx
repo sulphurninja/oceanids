@@ -38,7 +38,7 @@ export default function HomePage() {
   const [orderId, setOrderId] = useState<string>("")
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  const whatsappNumber = "919999999999"
+  const whatsappNumber = "918004277632"
 
   useEffect(() => { fetchStock() }, [])
 
