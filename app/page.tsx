@@ -128,49 +128,34 @@ export default function HomePage() {
     try {
       console.log('[VERIFY] Checking payment status for order:', oid);
       
-      // First, verify with UPI Gateway directly
-      const upiGatewayKey = process.env.NEXT_PUBLIC_UPI_GATEWAY_KEY;
-      
-      if (upiGatewayKey) {
-        // Query UPI Gateway to check payment status
-        const verifyResponse = await fetch('/api/purchase/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: oid })
-        });
-        
-        const verifyData = await verifyResponse.json();
-        console.log('[VERIFY] Payment verification response:', verifyData);
-        
-        if (verifyData.success && verifyData.accounts) {
-          setPurchasedAccounts(verifyData.accounts)
-          setPurchaseStatus("success")
-          fetchStock()
-          window.history.replaceState({}, "", "/")
-          return
-        } else if (verifyData.pending) {
-          // Payment still processing, check again
-          setTimeout(() => checkPaymentAndGetCredentials(oid), 2000)
-          return
-        }
-      }
-      
-      // Fallback: Check database
-      const res = await fetch(`/api/purchase/verify?order_id=${oid}`)
+      // Call verify endpoint with GET
+      const res = await fetch(`/api/purchase/verify?order_id=${encodeURIComponent(oid)}`)
       const data = await res.json()
+      
+      console.log('[VERIFY] Payment verification response:', data);
       
       if (data.success && data.accounts) {
         setPurchasedAccounts(data.accounts)
         setPurchaseStatus("success")
         fetchStock()
         window.history.replaceState({}, "", "/")
+        return
       }
       else if (data.pending) {
+        // Payment still processing, check again
         setTimeout(() => checkPaymentAndGetCredentials(oid), 2000)
+        return
       }
       else {
         setPurchaseStatus("failed")
         toast.error(data.message || "Verification failed.")
+      }
+    } catch (error) {
+      console.error('[VERIFY] Error checking payment:', error)
+      toast.error("Error verifying payment.")
+      setPurchaseStatus("failed")
+    }
+  }
         window.history.replaceState({}, "", "/")
       }
     } catch (error) {
