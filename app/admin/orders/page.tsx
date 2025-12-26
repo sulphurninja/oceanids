@@ -6,15 +6,24 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { 
   ShoppingCart, Search, Loader2, Clock, User, 
-  CheckCircle2, XCircle, AlertCircle, Package
+  CheckCircle2, XCircle, AlertCircle, Package, Eye, EyeOff, Copy
 } from "lucide-react"
 import { motion } from "framer-motion"
+import { toast } from "sonner"
+
+interface OrderAccount {
+  username: string
+  password: string
+  mobileNumber?: string
+  email?: string
+}
 
 interface Order {
   _id: string
   orderId: string
   user?: { name: string; email: string } | null
   provider?: { name: string; slug: string }
+  accounts?: OrderAccount[]
   accountType: string
   amount: number
   quantity?: number
@@ -22,6 +31,8 @@ interface Order {
   paymentStatus: string
   customerName?: string
   createdAt: string
+  upiTxnId?: string
+  transactionId?: string
 }
 
 export default function AdminOrdersPage() {
@@ -29,6 +40,8 @@ export default function AdminOrdersPage() {
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+  const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchOrders()
@@ -81,6 +94,23 @@ export default function AdminOrdersPage() {
       case "failed": return "bg-red-500/10 text-red-500 border-red-500/20"
       default: return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
     }
+  }
+
+  const togglePassword = (id: string) => {
+    setRevealedPasswords(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success("Copied!")
   }
 
   return (
@@ -164,45 +194,128 @@ export default function AdminOrdersPage() {
               key={order._id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="card-premium p-4 rounded-xl"
+              className="card-premium rounded-xl overflow-hidden"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    {getStatusIcon(order.paymentStatus)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold font-mono text-sm">#{order.orderId}</p>
-                      <Badge className={getStatusStyle(order.paymentStatus)}>
-                        {order.paymentStatus}
-                      </Badge>
-                      {(order.quantity || 1) > 1 && (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <Package className="w-3 h-3" />
-                          {order.quantity} IDs
+              <button
+                onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}
+                className="w-full p-4 text-left hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      {getStatusIcon(order.paymentStatus)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold font-mono text-sm">#{order.orderId}</p>
+                        <Badge className={getStatusStyle(order.paymentStatus)}>
+                          {order.paymentStatus}
                         </Badge>
+                        {(order.quantity || 1) > 1 && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Package className="w-3 h-3" />
+                            {order.quantity} IDs
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <User className="w-3.5 h-3.5" />
+                          {order.user?.name || order.customerName || "Guest"}
+                        </span>
+                        <span className="hidden sm:inline">
+                          {order.user?.email || "Anonymous Purchase"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg">₹{order.amount}</p>
+                    <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Expandable Credentials Section */}
+              {expandedOrder === order._id && order.paymentStatus === "completed" && order.accounts && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-t border-border bg-muted/30 p-4 space-y-3"
+                >
+                  {order.upiTxnId && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Transaction ID</p>
+                      <div className="flex items-center gap-2 bg-background rounded-lg p-2 font-mono text-sm">
+                        <span className="flex-1 truncate">{order.upiTxnId}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(order.upiTxnId || "")}
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.accounts.map((account, idx) => (
+                    <div key={idx} className="bg-background rounded-lg p-3 space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Account #{idx + 1}</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Username</p>
+                          <div className="flex items-center gap-2 bg-muted rounded px-2 py-1 font-mono">
+                            <span className="flex-1 truncate">{account.username}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 w-5 p-0"
+                              onClick={() => copyToClipboard(account.username)}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Password</p>
+                          <div className="flex items-center gap-2 bg-muted rounded px-2 py-1 font-mono">
+                            <span className="flex-1 truncate">
+                              {revealedPasswords.has(`${order._id}-${idx}`) ? account.password : "••••••"}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 w-5 p-0"
+                              onClick={() => togglePassword(`${order._id}-${idx}`)}
+                            >
+                              {revealedPasswords.has(`${order._id}-${idx}`) ? (
+                                <EyeOff className="w-3 h-3" />
+                              ) : (
+                                <Eye className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      {account.mobileNumber && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">Mobile:</span> {account.mobileNumber}
+                        </div>
+                      )}
+                      {account.email && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">Email:</span> {account.email}
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5" />
-                        {order.user?.name || order.customerName || "Guest"}
-                      </span>
-                      <span className="hidden sm:inline">
-                        {order.user?.email || "Anonymous Purchase"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">₹{order.amount}</p>
-                  <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
-                    <Clock className="w-3 h-3" />
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
+                  ))}
+                </motion.div>
+              )}
             </motion.div>
           ))}
         </div>

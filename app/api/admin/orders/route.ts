@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const orders = await Order.find()
       .populate('user', 'name email')
       .populate('provider', 'name slug')
+      .populate('accounts', 'username password mobileNumber email')
       .sort({ createdAt: -1 })
       .lean();
 

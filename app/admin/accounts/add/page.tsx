@@ -41,6 +41,7 @@ export default function AddAccountsPage() {
   const [providers, setProviders] = useState<Provider[]>([])
   const [accounts, setAccounts] = useState<AccountInput[]>([{ ...defaultAccount }])
   const [bulkInput, setBulkInput] = useState("")
+  const [bulkPassword, setBulkPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [mode, setMode] = useState<"single" | "bulk">("single")
   const [selectedProvider, setSelectedProvider] = useState("irctc")
@@ -99,17 +100,23 @@ export default function AddAccountsPage() {
     const lines = bulkInput.trim().split("\n").filter(line => line.trim())
     const parsed: AccountInput[] = []
     const provider = providers.find(p => p.slug === selectedProvider)
+    const commonPassword = bulkPassword.trim()
+
+    if (!commonPassword) {
+      toast.error("Please enter a password for all accounts")
+      return
+    }
 
     for (const line of lines) {
       const parts = line.split(/[:\t]/)
-      if (parts.length >= 2) {
+      if (parts.length >= 1 && parts[0].trim()) {
         parsed.push({
           username: parts[0].trim(),
-          password: parts[1].trim(),
+          password: commonPassword,
           provider: selectedProvider,
           price: provider?.price || 400,
-          mobileNumber: parts[2]?.trim() || "",
-          email: parts[3]?.trim() || "",
+          mobileNumber: parts[1]?.trim() || "",
+          email: parts[2]?.trim() || "",
           notes: "",
         })
       }
@@ -120,7 +127,7 @@ export default function AddAccountsPage() {
       setMode("single")
       toast.success(`Parsed ${parsed.length} accounts`)
     } else {
-      toast.error("No valid accounts found. Use format: username:password")
+      toast.error("No valid accounts found. Enter one username per line")
     }
   }
 
@@ -210,20 +217,41 @@ export default function AddAccountsPage() {
       </div>
 
       {mode === "bulk" ? (
-        <div className="card-premium p-6 rounded-xl">
-          <h3 className="font-semibold mb-2">Bulk Import</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Paste accounts in format: <code className="bg-muted px-1 rounded">username:password</code> (one per line)
-            <br />
-            Optional: <code className="bg-muted px-1 rounded">username:password:mobile:email</code>
-          </p>
-          <textarea
-            className="w-full h-48 p-4 border border-border rounded-xl bg-background font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="user1:pass1&#10;user2:pass2&#10;user3:pass3:9876543210:user@email.com"
-            value={bulkInput}
-            onChange={(e) => setBulkInput(e.target.value)}
-          />
-          <Button className="mt-4" onClick={parseBulkInput}>
+        <div className="card-premium p-6 rounded-xl space-y-4">
+          <div>
+            <h3 className="font-semibold mb-2">Bulk Import</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Enter a common password for all accounts, then paste one username per line (with optional mobile and email)
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Password (for all accounts) *</label>
+            <Input
+              type="password"
+              placeholder="Enter password that all accounts will use"
+              value={bulkPassword}
+              onChange={(e) => setBulkPassword(e.target.value)}
+              className="font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Usernames</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Format: <code className="bg-muted px-1 rounded">username</code> (one per line)
+              <br />
+              Optional: <code className="bg-muted px-1 rounded">username:mobile:email</code>
+            </p>
+            <textarea
+              className="w-full h-48 p-4 border border-border rounded-xl bg-background font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="user1&#10;user2:9876543210&#10;user3:9876543211:user@email.com"
+              value={bulkInput}
+              onChange={(e) => setBulkInput(e.target.value)}
+            />
+          </div>
+
+          <Button onClick={parseBulkInput}>
             <Check className="w-4 h-4 mr-2" />
             Parse & Preview
           </Button>

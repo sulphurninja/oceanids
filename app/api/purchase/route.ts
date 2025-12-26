@@ -55,12 +55,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find and reserve accounts
-    const availableAccounts = await Account.find({ status: 'available' })
+    // Reserve accounts atomically - update AND fetch in one operation
+    const accountIds = await Account.find({ status: 'available' })
       .limit(quantity)
-      .select('_id');
+      .select('_id')
+      .then(docs => docs.map(d => d._id));
 
-    if (availableAccounts.length < quantity) {
+    if (accountIds.length < quantity) {
+      return NextResponse.json(
+        { success: false, message: 'Not enough stock available' },
+        { status: 400 }
+      );
+    }
+
+    // Mark accounts as reserved atomically to prevent double-assignment
+    const updateResult = await Account.updateMany(
+      { 
+        _id: { $in: accountIds },
+        status: 'available'  // Only update if still available
+      },
+      { status: 'reserved' }
+    );
+
+    // If update didn't affect all accounts, some were already taken
+    if (updateResult.modifiedCount < quantity) {
       return NextResponse.json(
         { success: false, message: 'Not enough stock available' },
         { status: 400 }
@@ -69,16 +87,8 @@ export async function POST(request: NextRequest) {
 
     // Get admin-set price
     const pricePerID = await getPricePerID();
-
-    const accountIds = availableAccounts.map(acc => acc._id);
     const amount = quantity * pricePerID;
     const orderId = generateOrderId();
-
-    // Reserve the accounts
-    await Account.updateMany(
-      { _id: { $in: accountIds } },
-      { status: 'reserved' }
-    );
 
     // Create order
     const order = await Order.create({
@@ -193,3 +203,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

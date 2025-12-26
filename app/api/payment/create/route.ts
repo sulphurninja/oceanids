@@ -43,14 +43,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { provider = 'irctc', accountType = 'standard' } = body;
 
-    // Find an available account (by provider or accountType for backwards compatibility)
-    const availableAccount = await Account.findOne({
-      $or: [
-        { provider, status: 'available' },
-        { accountType, status: 'available' }
-      ],
-      status: 'available'
-    });
+    // Find and atomically reserve an available account
+    // Use findOneAndUpdate to ensure no double-assignment in concurrent requests
+    const availableAccount = await Account.findOneAndUpdate(
+      { status: 'available' },
+      { status: 'reserved' },
+      { new: true }
+    );
 
     if (!availableAccount) {
       return NextResponse.json(
@@ -71,10 +70,6 @@ export async function POST(request: NextRequest) {
     // ALWAYS use admin-set price from Provider, not individual account price
     const amount = await getAdminSetPrice(provider);
     const orderId = generateOrderId();
-
-    // Reserve the account
-    availableAccount.status = 'reserved';
-    await availableAccount.save();
 
     // Create order
     const order = await Order.create({

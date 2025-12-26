@@ -37,6 +37,9 @@ export default function HomePage() {
   const [purchasedAccounts, setPurchasedAccounts] = useState<PurchasedAccount[]>([])
   const [orderId, setOrderId] = useState<string>("")
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [lookupMode, setLookupMode] = useState(false)
+  const [lookupTxnId, setLookupTxnId] = useState("")
+  const [lookupLoading, setLookupLoading] = useState(false)
 
   const whatsappNumber = "918004277632"
 
@@ -79,6 +82,33 @@ export default function HomePage() {
     } catch (error) { toast.error("Something went wrong."); setPurchaseStatus("idle") }
   }
 
+  const handleLookupTransaction = async () => {
+    if (!lookupTxnId.trim()) {
+      toast.error("Please enter a transaction ID")
+      return
+    }
+
+    setLookupLoading(true)
+    try {
+      const res = await fetch(`/api/purchase/verify?order_id=${encodeURIComponent(lookupTxnId)}`)
+      const data = await res.json()
+
+      if (data.success && data.accounts) {
+        setPurchasedAccounts(data.accounts)
+        setOrderId(lookupTxnId)
+        setPurchaseStatus("success")
+        setLookupMode(false)
+        toast.success("IDs found!")
+      } else {
+        toast.error(data.message || "Transaction not found")
+      }
+    } catch (error) {
+      toast.error("Error looking up transaction")
+    } finally {
+      setLookupLoading(false)
+    }
+  }
+
   const copyToClipboard = (text: string) => { navigator.clipboard.writeText(text); toast.success("Copied!") }
   const copyAllCredentials = () => {
     const text = purchasedAccounts.map((acc, i) => `ID ${i + 1}: ${acc.username} | ${acc.password}`).join("\n")
@@ -97,6 +127,11 @@ export default function HomePage() {
   useEffect(() => {
     // Handle URL params from UPI Gateway redirect
     let urlString = window.location.href
+    // Remove fragment (#) first
+    if (urlString.includes('#')) {
+      urlString = urlString.split('#')[0]
+    }
+    
     const firstQuestionMark = urlString.indexOf('?')
     if (firstQuestionMark !== -1) {
       const beforeQuery = urlString.substring(0, firstQuestionMark + 1)
@@ -107,7 +142,12 @@ export default function HomePage() {
     const url = new URL(urlString)
     const urlParams = url.searchParams
     // Handle both order_id and client_txn_id from redirects
-    const paymentOrderId = urlParams.get("order_id") || urlParams.get("client_txn_id")
+    let paymentOrderId = urlParams.get("order_id") || urlParams.get("client_txn_id")
+    
+    // Clean up the order_id - remove any # or other fragments
+    if (paymentOrderId) {
+      paymentOrderId = paymentOrderId.split('#')[0].trim()
+    }
     
     if (paymentOrderId) { 
       setOrderId(paymentOrderId)
@@ -204,6 +244,19 @@ export default function HomePage() {
                   <p className="text-green-200">{purchasedAccounts.length} {purchasedAccounts.length > 1 ? "IDs" : "ID"} ready to use</p>
                 </div>
 
+                {/* Transaction ID */}
+                {orderId && (
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-white/60 font-medium mb-1">Transaction ID</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-sm text-cyan-300 flex-1 truncate">{orderId}</p>
+                      <button onClick={() => copyToClipboard(orderId)} className="text-white/40 hover:text-white transition-colors">
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mb-4">
                   <Button onClick={copyAllCredentials} className="flex-1 h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">
                     <Copy className="w-4 h-4 mr-2" /> Copy All
@@ -260,6 +313,47 @@ export default function HomePage() {
                     <h3 className="text-2xl font-bold text-white mb-1">How many IDs?</h3>
                     <p className="text-sm text-blue-300/80">₹{pricePerID} each • Instant delivery • 100% verified</p>
                   </div>
+
+                  {/* Lookup Option */}
+                  {!lookupMode && (
+                    <button
+                      onClick={() => setLookupMode(true)}
+                      className="text-xs text-blue-300 hover:text-blue-200 mb-4 font-medium"
+                    >
+                      Have a transaction ID? Lookup your IDs →
+                    </button>
+                  )}
+
+                  {lookupMode ? (
+                    /* LOOKUP MODE */
+                    <div className="space-y-3">
+                      <Input
+                        placeholder="Enter transaction ID..."
+                        value={lookupTxnId}
+                        onChange={(e) => setLookupTxnId(e.target.value)}
+                        className="font-mono text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleLookupTransaction}
+                          disabled={lookupLoading}
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600"
+                        >
+                          {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lookup"}
+                        </Button>
+                        <Button
+                          onClick={() => { setLookupMode(false); setLookupTxnId("") }}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          Back
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* PURCHASE MODE */
+                    <>
+
 
                   {/* Quantity Grid */}
                   <div className="grid grid-cols-2 gap-3 mb-4">
@@ -335,6 +429,8 @@ export default function HomePage() {
                       <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                       <div className="text-sm text-red-200">Payment failed. Try again.</div>
                     </motion.div>
+                  )}
+                    </>
                   )}
                 </div>
               </motion.div>

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
-    const orderId = searchParams.get('order_id');
+    let orderId = searchParams.get('order_id');
 
     if (!orderId) {
       return NextResponse.json(
@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Clean up orderId - remove any fragments or extra characters
+    orderId = orderId.split('#')[0].trim()
 
     // Find the order
     const order = await Order.findOne({ orderId }).populate('accounts');
