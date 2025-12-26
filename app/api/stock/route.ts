@@ -6,8 +6,8 @@ import Order from '@/models/orderModel';
 
 export const dynamic = 'force-dynamic';
 
-// Orders expire after 30 minutes if not paid
-const ORDER_EXPIRY_MINUTES = 30;
+// Orders expire after 5 minutes if not paid
+const ORDER_EXPIRY_MINUTES = 2;
 
 // Cleanup old reserved orders and release accounts
 async function cleanupExpiredOrders() {
