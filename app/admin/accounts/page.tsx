@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { 
   Package, Plus, Search, Trash2, Eye, EyeOff, 
-  Loader2, Filter
+  Loader2, Filter, Unlock
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -69,6 +69,23 @@ export default function AdminAccountsPage() {
       }
     } catch (error) {
       toast.error("Error deleting account")
+    }
+  }
+
+  const unreserveAccount = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/accounts/${id}/unreserve`, {
+        method: "PATCH",
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success("Account unreserved and released back to available")
+        fetchAccounts()
+      } else {
+        toast.error(data.message || "Failed to unreserve")
+      }
+    } catch (error) {
+      toast.error("Error unreserving account")
     }
   }
 
@@ -212,6 +229,17 @@ export default function AdminAccountsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {account.status === "reserved" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => unreserveAccount(account._id)}
+                      className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                      title="Release this reserved account back to available"
+                    >
+                      <Unlock className="w-4 h-4" />
+                    </Button>
+                  )}
                   {account.status === "available" && (
                     <Button
                       variant="ghost"
