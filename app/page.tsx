@@ -156,15 +156,6 @@ export default function HomePage() {
       setPurchaseStatus("failed")
     }
   }
-        window.history.replaceState({}, "", "/")
-      }
-    } catch (error) {
-      console.error('[VERIFY] Error:', error)
-      setPurchaseStatus("failed")
-      toast.error("Verification failed.")
-      window.history.replaceState({}, "", "/")
-    }
-  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-x-hidden relative">
