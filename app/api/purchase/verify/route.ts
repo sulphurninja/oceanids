@@ -80,89 +80,87 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Check payment status with UPI Gateway
+    // Check payment status with UPI Gateway directly
     const upiGatewayKey = process.env.UPI_GATEWAY_KEY;
 
-    if (!upiGatewayKey) {
-      // Test mode: Check if test payment was completed
-      if (order.paymentStatus === 'completed') {
-        return returnCredentials(order);
-      }
+    if (upiGatewayKey) {
+      console.log('[VERIFY] Checking with UPI Gateway for order:', orderId);
       
-      return NextResponse.json({
-        success: false,
-        pending: true,
-        message: 'Payment verification pending',
-      });
-    }
+      try {
+        // Format date as DD-MM-YYYY
+        const d = new Date(order.createdAt);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const txnDate = `${day}-${month}-${year}`;
+        
+        const verifyResponse = await fetch('https://api.ekqr.in/api/check_order_status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            key: upiGatewayKey,
+            client_txn_id: orderId,
+            txn_date: txnDate,
+          }),
+        });
 
-    // Verify with UPI Gateway
-    const verifyResponse = await fetch('https://api.ekqr.in/api/check_order_status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key: upiGatewayKey,
-        client_txn_id: orderId,
-        txn_date: formatDate(order.createdAt),
-      }),
-    });
+        const verifyData = await verifyResponse.json();
+        console.log('[VERIFY] UPI Gateway response:', JSON.stringify(verifyData, null, 2));
 
-    const verifyData = await verifyResponse.json();
+        if (verifyData.status && verifyData.data?.status === 'success') {
+          // Payment successful - mark as completed
+          console.log('[VERIFY] Payment confirmed by UPI Gateway');
+          order.paymentStatus = 'completed';
+          order.status = 'delivered';
+          order.credentialsRevealed = true;
+          order.revealedAt = new Date();
+          order.transactionId = verifyData.data.upi_txn_id || '';
+          order.upiTxnId = verifyData.data.upi_txn_id || '';
+          order.paymentDetails = verifyData.data;
+          await order.save();
 
-    if (verifyData.status && verifyData.data?.status === 'success') {
-      // Payment successful - mark as completed and reveal credentials
-      order.paymentStatus = 'completed';
-      order.status = 'delivered';
-      order.credentialsRevealed = true;
-      order.revealedAt = new Date();
-      order.transactionId = verifyData.data.txnId || '';
-      order.upiTxnId = verifyData.data.upi_txn_id || '';
-      order.paymentDetails = verifyData.data;
-      await order.save();
+          // Mark accounts as sold
+          await Account.updateMany(
+            { _id: { $in: order.accounts } },
+            { 
+              status: 'sold',
+              soldAt: new Date(),
+            }
+          );
 
-      // Mark accounts as sold
-      await Account.updateMany(
-        { _id: { $in: order.accounts } },
-        { 
-          status: 'sold',
-          soldAt: new Date(),
+          return returnCredentials(order);
+        } else if (verifyData.data?.status === 'pending' || verifyData.data?.status === 'scanning') {
+          // Still pending
+          console.log('[VERIFY] Payment still pending');
+          return NextResponse.json({
+            success: false,
+            pending: true,
+            message: 'Payment still processing',
+          });
+        } else {
+          // Payment failed
+          console.log('[VERIFY] Payment failed or expired');
+          order.paymentStatus = 'failed';
+          order.status = 'cancelled';
+          await order.save();
+
+          await Account.updateMany(
+            { _id: { $in: order.accounts } },
+            { status: 'available', orderId: null }
+          );
+
+          return NextResponse.json({
+            success: false,
+            pending: false,
+            message: 'Payment failed or expired',
+          });
         }
-      );
-
-      return returnCredentials(order);
-    } else if (verifyData.data?.status === 'pending' || verifyData.data?.status === 'scanning') {
-      // Still pending
-      return NextResponse.json({
-        success: false,
-        pending: true,
-        message: 'Payment still processing',
-      });
-    } else if (verifyData.data?.status === 'failure' || verifyData.data?.status === 'expired') {
-      // Payment failed - release accounts
-      order.paymentStatus = 'failed';
-      order.status = 'cancelled';
-      await order.save();
-
-      await Account.updateMany(
-        { _id: { $in: order.accounts } },
-        { status: 'available', orderId: null }
-      );
-
-      return NextResponse.json({
-        success: false,
-        pending: false,
-        message: 'Payment failed',
-      });
+      } catch (upiError) {
+        console.error('[VERIFY] UPI Gateway error:', upiError);
+      }
     }
-
-    // Unknown status - keep checking
-    return NextResponse.json({
-      success: false,
-      pending: true,
-      message: 'Checking payment status...',
-    });
 
   } catch (error: any) {
     console.error('Verify error:', error);

@@ -120,7 +120,22 @@ export async function POST(request: NextRequest) {
     }
 
     // UPI Gateway API call
-    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}?order_id=${orderId}&status=success`;
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+    
+    if (!appUrl) {
+      console.error('NEXT_PUBLIC_APP_URL is not set in environment');
+      return NextResponse.json(
+        { success: false, message: 'Server configuration error: Missing APP_URL' },
+        { status: 500 }
+      );
+    }
+    
+    // Note: We don't use redirect_url because we verify payment directly
+    // This eliminates issues with localhost URLs and webhook dependencies
+    
+    console.log('[PURCHASE] UPI Gateway Request:');
+    console.log('  - Order ID:', orderId);
+    console.log('  - Amount:', amount);
 
     const upiResponse = await fetch('https://api.ekqr.in/api/create_order', {
       method: 'POST',
@@ -130,19 +145,21 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         key: upiGatewayKey,
         client_txn_id: orderId,
-        amount: amount.toString(),
-        p_info: `${quantity} IRCTC ID${quantity > 1 ? 's' : ''}`,
-        customer_name: 'Customer',
-        customer_email: 'customer@example.com',
+        amount: Math.ceil(amount).toString(),
+        p_info: 'IRCTC ID',
+        customer_name: 'User',
+        customer_email: 'user@example.com',
         customer_mobile: '9999999999',
-        redirect_url: redirectUrl,
-        udf1: '',
-        udf2: '',
-        udf3: '',
+        redirect_url: 'https://oceanid.shop',
+        udf1: 'N/A',
+        udf2: 'N/A',
+        udf3: 'N/A',
       }),
     });
 
     const upiData = await upiResponse.json();
+    
+    console.log('[PURCHASE] UPI Gateway Response:', JSON.stringify(upiData, null, 2));
 
     if (upiData.status && upiData.data?.payment_url) {
       // Save gateway order ID

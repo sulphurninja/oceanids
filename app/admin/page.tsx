@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Badge } from "@/components/ui/badge"
 import { 
   Package, Users, ShoppingCart, TrendingUp,
-  Loader2, ArrowRight, Plus
+  Loader2, ArrowRight, Plus, DollarSign
 } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -69,18 +69,25 @@ export default function AdminDashboard() {
       color: "bg-green-500/10 text-green-500",
     },
     {
+      href: "/admin/pricing",
+      icon: DollarSign,
+      title: "Pricing",
+      description: "Manage pricing rates",
+      color: "bg-purple-500/10 text-purple-500",
+    },
+    {
       href: "/admin/orders",
       icon: ShoppingCart,
       title: "View Orders",
       description: "Track all customer orders",
-      color: "bg-purple-500/10 text-purple-500",
+      color: "bg-orange-500/10 text-orange-500",
     },
     {
       href: "/admin/users",
       icon: Users,
       title: "Manage Users",
       description: "View and manage customers",
-      color: "bg-orange-500/10 text-orange-500",
+      color: "bg-pink-500/10 text-pink-500",
     },
   ]
 
@@ -187,7 +194,7 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <motion.div variants={item}>
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {quickActions.map((action) => (
             <Link key={action.href} href={action.href}>
               <div className="card-premium card-hover p-5 rounded-xl group cursor-pointer h-full">

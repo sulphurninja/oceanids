@@ -6,8 +6,8 @@ A modern Next.js application for selling IRCTC accounts with instant delivery, b
 
 ### For Users
 - 🚀 **Instant Delivery** - Get account credentials immediately after payment
-- 💳 **Secure Payments** - UPI/Card payments via Cashfree gateway
-- 📱 **Modern UI** - Beautiful, responsive design with dark mode
+- 💳 **Secure Payments** - UPI payments via UPI Gateway
+- 📱 **Modern UI** - Beautiful, responsive design with modern dark theme
 - 🔐 **JWT Authentication** - Secure login/signup system
 - 📊 **Dashboard** - View and manage purchased accounts
 
@@ -23,7 +23,7 @@ A modern Next.js application for selling IRCTC accounts with instant delivery, b
 - **Styling**: Tailwind CSS 4
 - **Database**: MongoDB with Mongoose
 - **Auth**: JWT with HTTP-only cookies
-- **Payments**: Cashfree Payment Gateway
+- **Payments**: UPI Gateway (https://upigateway.com/)
 - **Animations**: Framer Motion
 - **Notifications**: Sonner
 
@@ -49,14 +49,11 @@ MONGODB_URI=mongodb+srv://...
 # JWT
 JWT_SECRET=your-secret-key
 
-# Cashfree (copy from oceanlinux)
-CASHFREE_APP_ID=your-app-id
-CASHFREE_SECRET_KEY=your-secret-key
-CASHFREE_ENV=TEST
+# UPI Gateway API Key
+UPI_GATEWAY_KEY=your-upi-gateway-api-key
 
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3001
-NEXT_PUBLIC_CASHFREE_ENV=TEST
 ```
 
 ### 3. Run Development Server
@@ -120,9 +117,10 @@ username2:password2:mobile:email
 - `GET /api/accounts/stock` - Get available stock count
 
 ### Payment
-- `POST /api/payment/create` - Create payment session
-- `POST /api/payment/webhook` - Cashfree webhook
-- `GET /api/payment/status` - Check payment status
+- `POST /api/purchase` - Create purchase order (get payment URL)
+- `GET /api/purchase/verify` - Verify payment status
+- `POST /api/payment/webhook` - UPI Gateway webhook
+- `POST /api/purchase/callback` - Payment callback handler
 
 ### Admin
 - `GET /api/admin/stats` - Dashboard stats
@@ -143,8 +141,8 @@ vercel
 Remember to:
 1. Set all environment variables in Vercel
 2. Update `NEXT_PUBLIC_APP_URL` to your production URL
-3. Set `CASHFREE_ENV=PRODUCTION` for live payments
-4. Add Cashfree webhook URL: `https://yourdomain.com/api/payment/webhook`
+3. Set `UPI_GATEWAY_KEY` to your production API key
+4. Configure UPI Gateway webhook URL: `https://yourdomain.com/api/payment/webhook`
 
 ## License
 

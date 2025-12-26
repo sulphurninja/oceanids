@@ -3,15 +3,29 @@ import connectDB from '@/lib/db';
 import Account from '@/models/accountModel';
 import Order from '@/models/orderModel';
 import User from '@/models/userModel';
+import Provider from '@/models/providerModel';
 import { getUserFromRequest } from '@/lib/auth';
-import axios from 'axios';
 import crypto from 'crypto';
 
-// Default price - all accounts are ₹400
-const DEFAULT_PRICE = 400;
+// Default price - all accounts are ₹199
+const DEFAULT_PRICE = 199;
 
 function generateOrderId() {
-  return 'OID_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex').toUpperCase();
+  return 'TXN_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex').toUpperCase();
+}
+
+async function getAdminSetPrice(provider: string = 'irctc'): Promise<number> {
+  // Get price from Provider model (admin-set)
+  const providerConfig = await Provider.findOne({ 
+    slug: provider,
+    isActive: true 
+  });
+  
+  if (providerConfig && providerConfig.price) {
+    return providerConfig.price;
+  }
+  
+  return DEFAULT_PRICE;
 }
 
 export async function POST(request: NextRequest) {
@@ -54,8 +68,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use account's price or default to ₹400
-    const amount = availableAccount.price || DEFAULT_PRICE;
+    // ALWAYS use admin-set price from Provider, not individual account price
+    const amount = await getAdminSetPrice(provider);
     const orderId = generateOrderId();
 
     // Reserve the account
@@ -73,51 +87,60 @@ export async function POST(request: NextRequest) {
       customerEmail: user.email,
       customerName: user.name,
       clientTxnId: orderId,
+      paymentMethod: 'upi',
     });
 
     // Update account with order reference
     availableAccount.orderId = order._id;
     await availableAccount.save();
 
-    // Create Cashfree payment session
-    const cashfreeUrl = process.env.CASHFREE_ENV === 'PRODUCTION'
-      ? 'https://api.cashfree.com/pg/orders'
-      : 'https://sandbox.cashfree.com/pg/orders';
+    // Create UPI Gateway payment request
+    const upiGatewayKey = process.env.UPI_GATEWAY_KEY;
+    
+    if (!upiGatewayKey) {
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway not configured' },
+        { status: 500 }
+      );
+    }
 
-    const cashfreePayload = {
-      order_id: orderId,
-      order_amount: amount,
-      order_currency: 'INR',
-      customer_details: {
-        customer_id: user._id.toString(),
-        customer_email: user.email,
-        customer_phone: user.phone || '9999999999',
-        customer_name: user.name,
-      },
-      order_meta: {
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback?order_id=${orderId}`,
-        notify_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payment/webhook`,
-      },
-    };
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || process.env.NEXT_PUBLIC_APP_URL || '';
+    
+    // Note: We don't use redirect_url because we verify payment directly
 
-    const cashfreeResponse = await axios.post(cashfreeUrl, cashfreePayload, {
+    const upiResponse = await fetch('https://api.ekqr.in/api/create_order', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-client-id': process.env.CASHFREE_APP_ID,
-        'x-client-secret': process.env.CASHFREE_SECRET_KEY,
-        'x-api-version': '2023-08-01',
       },
+      body: JSON.stringify({
+        key: upiGatewayKey,
+        client_txn_id: orderId,
+        amount: Math.ceil(amount).toString(),
+        p_info: 'IRCTC ID',
+        customer_name: 'User',
+        customer_email: 'user@example.com',
+        customer_mobile: '9999999999',
+        redirect_url: 'https://oceanid.shop',
+        udf1: 'N/A',
+        udf2: 'N/A',
+        udf3: 'N/A',
+      }),
     });
 
-    if (cashfreeResponse.data.payment_session_id) {
-      order.gatewayOrderId = cashfreeResponse.data.cf_order_id;
+    const upiData = await upiResponse.json();
+
+    if (upiData.status && upiData.data?.payment_url) {
+      // Save gateway order ID
+      order.gatewayOrderId = upiData.data.order_id?.toString() || '';
+      order.paymentStatus = 'pending';
       await order.save();
 
       return NextResponse.json({
         success: true,
         orderId: order._id,
-        paymentSessionId: cashfreeResponse.data.payment_session_id,
-        cfOrderId: cashfreeResponse.data.cf_order_id,
+        paymentUrl: upiData.data.payment_url,
+        upiIntents: upiData.data.upi_intent || {},
       });
     }
 
@@ -128,7 +151,7 @@ export async function POST(request: NextRequest) {
     await Order.findByIdAndDelete(order._id);
 
     return NextResponse.json(
-      { success: false, message: 'Failed to create payment session' },
+      { success: false, message: upiData.msg || 'Failed to create payment' },
       { status: 500 }
     );
 

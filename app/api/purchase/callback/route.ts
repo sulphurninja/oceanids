@@ -92,8 +92,22 @@ export async function GET(request: NextRequest) {
     await connectDB();
     
     const { searchParams } = new URL(request.url);
-    const orderId = searchParams.get('client_txn_id') || searchParams.get('order_id');
-    const status = searchParams.get('status');
+    let orderId = searchParams.get('client_txn_id') || searchParams.get('order_id');
+    let status = searchParams.get('status');
+
+    console.log('[CALLBACK] Raw URL:', request.url);
+    console.log('[CALLBACK] Order ID:', orderId, 'Status:', status);
+
+    // If URL has malformed query string (multiple ?), extract order_id from path
+    if (!orderId && request.url.includes('?')) {
+      const urlStr = request.url;
+      const match = urlStr.match(/order_id=([^&?]+)/);
+      orderId = match ? match[1] : null;
+      
+      // Also try to get status
+      const statusMatch = urlStr.match(/status=([^&?]+)/);
+      status = statusMatch ? statusMatch[1] : status;
+    }
 
     // If payment failed via redirect, release accounts
     if (orderId && status && status.toLowerCase() !== 'success') {
@@ -109,19 +123,30 @@ export async function GET(request: NextRequest) {
           { status: 'available', orderId: null }
         );
 
-        console.log(`Released accounts for redirected failed order ${orderId}`);
+        console.log(`[CALLBACK] Released accounts for failed order ${orderId}`);
       }
     }
 
     if (orderId) {
-      // Redirect to main page with order details
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-      return NextResponse.redirect(`${baseUrl}?order_id=${orderId}&status=${status || 'success'}`);
+      // Clean up the order ID for URL (remove any extra params)
+      const cleanOrderId = orderId.split('&')[0];
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
+      const finalStatus = status || 'success';
+      
+      // Construct URL properly
+      const redirectUrl = baseUrl 
+        ? `${baseUrl}/?order_id=${encodeURIComponent(cleanOrderId)}&status=${encodeURIComponent(finalStatus)}`
+        : `/?order_id=${encodeURIComponent(cleanOrderId)}&status=${encodeURIComponent(finalStatus)}`;
+      
+      console.log('[CALLBACK] Redirecting to:', redirectUrl);
+      return NextResponse.redirect(redirectUrl);
     }
 
-    return NextResponse.redirect(process.env.NEXT_PUBLIC_APP_URL || '/');
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
+    return NextResponse.redirect(baseUrl || '/');
   } catch (error) {
-    console.error('Redirect callback error:', error);
-    return NextResponse.redirect(process.env.NEXT_PUBLIC_APP_URL || '/');
+    console.error('[CALLBACK] Error:', error);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
+    return NextResponse.redirect(baseUrl || '/');
   }
 }
