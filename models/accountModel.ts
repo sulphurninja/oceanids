@@ -38,6 +38,10 @@ const accountSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  emailPassword: {
+    type: String,
+    default: '',
+  },
   // Who bought it
   soldTo: {
     type: mongoose.Schema.Types.ObjectId,

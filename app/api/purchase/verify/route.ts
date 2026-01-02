@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     // Check if order has expired (pending for too long)
     const orderAge = Date.now() - new Date(order.createdAt).getTime();
     const orderAgeMinutes = orderAge / (1000 * 60);
-    
+
     if (order.paymentStatus === 'pending' && orderAgeMinutes > ORDER_EXPIRY_MINUTES) {
       // Order expired - release accounts
       order.paymentStatus = 'failed';
@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
         password: acc.password,
         mobileNumber: acc.mobileNumber || '',
         email: acc.email || '',
+        emailPassword: acc.emailPassword || '',
       }));
 
       return NextResponse.json({
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     if (upiGatewayKey) {
       console.log('[VERIFY] Checking with UPI Gateway for order:', orderId);
-      
+
       try {
         // Format date as DD-MM-YYYY
         const d = new Date(order.createdAt);
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = d.getFullYear();
         const txnDate = `${day}-${month}-${year}`;
-        
+
         const verifyResponse = await fetch('https://api.ekqr.in/api/check_order_status', {
           method: 'POST',
           headers: {
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
           // Mark accounts as sold
           await Account.updateMany(
             { _id: { $in: order.accounts } },
-            { 
+            {
               status: 'sold',
               soldAt: new Date(),
             }
@@ -176,12 +177,13 @@ export async function GET(request: NextRequest) {
 
 async function returnCredentials(order: any) {
   await order.populate('accounts');
-  
+
   const accounts = order.accounts.map((acc: any) => ({
     username: acc.username,
     password: acc.password,
     mobileNumber: acc.mobileNumber || '',
     email: acc.email || '',
+    emailPassword: acc.emailPassword || '',
   }));
 
   return NextResponse.json({

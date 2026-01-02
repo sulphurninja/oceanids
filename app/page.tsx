@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { 
-  Waves, Shield, Zap, Clock, CheckCircle, Download, Copy, Loader2, 
+import {
+  Waves, Shield, Zap, Clock, CheckCircle, Download, Copy, Loader2,
   AlertCircle, Package, MessageCircle, ChevronDown, Sparkles, TrendingUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ interface PurchasedAccount {
   password: string
   mobileNumber?: string
   email?: string
+  emailPassword?: string
 }
 
 type PurchaseStatus = "idle" | "processing" | "success" | "failed"
@@ -78,10 +79,10 @@ export default function HomePage() {
     try {
       const res = await fetch("/api/purchase", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quantity }) })
       const data = await res.json()
-      if (data.success && data.paymentUrl) { 
+      if (data.success && data.paymentUrl) {
         // Track pending order ID for cleanup if user leaves
         setPendingOrderId(data.orderId)
-        window.location.href = data.paymentUrl 
+        window.location.href = data.paymentUrl
       }
       else { toast.error(data.message || "Something went wrong."); setPurchaseStatus("idle") }
     } catch (error) { toast.error("Something went wrong."); setPurchaseStatus("idle") }
@@ -136,8 +137,8 @@ export default function HomePage() {
     navigator.clipboard.writeText(text); toast.success("All copied!")
   }
   const downloadCSV = () => {
-    const headers = ["Sr", "Username", "Password", "Mobile", "Email"]
-    const rows = purchasedAccounts.map((acc, i) => [i + 1, acc.username, acc.password, acc.mobileNumber || "", acc.email || ""])
+    const headers = ["Sr", "Username", "Password", "Mobile", "Email", "Email Password"]
+    const rows = purchasedAccounts.map((acc, i) => [i + 1, acc.username, acc.password, acc.mobileNumber || "", acc.email || "", acc.emailPassword || ""])
     const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n")
     const blob = new Blob([csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
@@ -152,7 +153,7 @@ export default function HomePage() {
     if (urlString.includes('#')) {
       urlString = urlString.split('#')[0]
     }
-    
+
     const firstQuestionMark = urlString.indexOf('?')
     if (firstQuestionMark !== -1) {
       const beforeQuery = urlString.substring(0, firstQuestionMark + 1)
@@ -164,29 +165,29 @@ export default function HomePage() {
     const urlParams = url.searchParams
     // Handle both order_id and client_txn_id from redirects
     let paymentOrderId = urlParams.get("order_id") || urlParams.get("client_txn_id")
-    
+
     // Clean up the order_id - remove any # or other fragments
     if (paymentOrderId) {
       paymentOrderId = paymentOrderId.split('#')[0].trim()
     }
-    
-    if (paymentOrderId) { 
+
+    if (paymentOrderId) {
       setOrderId(paymentOrderId)
       setPurchaseStatus("processing")
-      checkPaymentAndGetCredentials(paymentOrderId) 
+      checkPaymentAndGetCredentials(paymentOrderId)
     }
   }, [])
 
   const checkPaymentAndGetCredentials = async (oid: string) => {
     try {
       console.log('[VERIFY] Checking payment status for order:', oid);
-      
+
       // Call verify endpoint with GET
       const res = await fetch(`/api/purchase/verify?order_id=${encodeURIComponent(oid)}`)
       const data = await res.json()
-      
+
       console.log('[VERIFY] Payment verification response:', data);
-      
+
       if (data.success && data.accounts) {
         setPurchasedAccounts(data.accounts)
         setPurchaseStatus("success")
@@ -253,209 +254,213 @@ export default function HomePage() {
             {/* Left Column: Purchase Form */}
             <div className="lg:sticky lg:top-28">
               <AnimatePresence mode="wait">
-            {purchaseStatus === "success" && purchasedAccounts.length > 0 ? (
-              /* SUCCESS */
-              <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
-                className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 rounded-2xl p-6 backdrop-blur-xl shadow-2xl">
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center shadow-lg">
-                    <CheckCircle className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="text-3xl font-bold text-white mb-1">🚀 All Set!</h2>
-                  <p className="text-green-200">{purchasedAccounts.length} {purchasedAccounts.length > 1 ? "IDs" : "ID"} ready to use</p>
-                </div>
-
-                {/* Transaction ID */}
-                {orderId && (
-                  <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4">
-                    <p className="text-xs text-white/60 font-medium mb-1">Transaction ID</p>
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm text-cyan-300 flex-1 truncate">{orderId}</p>
-                      <button onClick={() => copyToClipboard(orderId)} className="text-white/40 hover:text-white transition-colors">
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2 mb-4">
-                  <Button onClick={copyAllCredentials} className="flex-1 h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">
-                    <Copy className="w-4 h-4 mr-2" /> Copy All
-                  </Button>
-                  <Button onClick={downloadCSV} className="flex-1 h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">
-                    <Download className="w-4 h-4 mr-2" /> Download
-                  </Button>
-                </div>
-
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {purchasedAccounts.map((acc, idx) => (
-                    <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05, duration: 0.2 }}
-                      className="bg-white/5 border border-white/10 p-3 rounded-lg backdrop-blur hover:bg-white/10 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-green-300 bg-green-500/20 px-2.5 py-0.5 rounded-full">ID {idx + 1}</span>
-                        <button onClick={() => copyToClipboard(`${acc.username}:${acc.password}`)} className="text-white/40 hover:text-white transition-colors">
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
+                {purchaseStatus === "success" && purchasedAccounts.length > 0 ? (
+                  /* SUCCESS */
+                  <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+                    className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 rounded-2xl p-6 backdrop-blur-xl shadow-2xl">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center shadow-lg">
+                        <CheckCircle className="w-8 h-8 text-white" />
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div><p className="text-white/60 mb-1 font-medium">Username</p><p className="font-mono font-bold text-cyan-300 break-all text-xs">{acc.username}</p></div>
-                        <div><p className="text-white/60 mb-1 font-medium">Password</p><p className="font-mono font-bold text-cyan-300 break-all text-xs">{acc.password}</p></div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <button onClick={() => { setPurchaseStatus("idle"); setPurchasedAccounts([]); setOrderId("") }}
-                  className="w-full mt-4 text-white/70 hover:text-white text-sm py-2 transition-colors font-medium">
-                  ← Get more IDs
-                </button>
-              </motion.div>
-            ) : (
-              /* PURCHASE FORM */
-              <motion.div key="purchase" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-                className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl hover:shadow-3xl transition-shadow">
-                
-                {/* Stock Status */}
-                {stock > 0 && (
-                  <div className="bg-gradient-to-r from-blue-600/30 to-cyan-600/20 border-b border-white/10 px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-green-400 shadow-lg shadow-green-500"></div>
-                      <span className="text-sm font-bold text-white">{stock} IDs Available</span>
+                      <h2 className="text-3xl font-bold text-white mb-1">🚀 All Set!</h2>
+                      <p className="text-green-200">{purchasedAccounts.length} {purchasedAccounts.length > 1 ? "IDs" : "ID"} ready to use</p>
                     </div>
-                    {stock <= 20 && (
-                      <span className="text-xs font-bold text-orange-300 bg-orange-500/20 px-3 py-1.5 rounded-full border border-orange-500/30">⚡ Limited Stock</span>
-                    )}
-                  </div>
-                )}
 
-                <div className="p-6">
-                  {/* Header */}
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-white mb-1">How many IDs?</h3>
-                    <p className="text-sm text-blue-300/80">₹{pricePerID} each • Instant delivery • 100% verified</p>
-                  </div>
-
-                  {/* Lookup Option */}
-                  {!lookupMode && (
-                    <button
-                      onClick={() => setLookupMode(true)}
-                      className="text-xs text-blue-300 hover:text-blue-200 mb-4 font-medium"
-                    >
-                      Have a transaction ID? Lookup your IDs →
-                    </button>
-                  )}
-
-                  {lookupMode ? (
-                    /* LOOKUP MODE */
-                    <div className="space-y-3">
-                      <Input
-                        placeholder="Enter transaction ID..."
-                        value={lookupTxnId}
-                        onChange={(e) => setLookupTxnId(e.target.value)}
-                        className="font-mono text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={handleLookupTransaction}
-                          disabled={lookupLoading}
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600"
-                        >
-                          {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lookup"}
-                        </Button>
-                        <Button
-                          onClick={() => { setLookupMode(false); setLookupTxnId("") }}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          Back
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* PURCHASE MODE */
-                    <>
-
-
-                  {/* Quantity Grid */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {presetQtys.map((item, i) => (
-                      <motion.button key={item.qty} 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05, duration: 0.2 }}
-                        onClick={() => handleSelectQty(item.qty)}
-                        disabled={item.qty > stock || purchaseStatus === "processing"}
-                        className={`p-4 rounded-xl transition-all font-bold text-sm relative group ${
-                          !isCustom && selectedQty === item.qty
-                            ? "bg-gradient-to-br from-blue-600 to-cyan-600 text-white border border-blue-400 shadow-lg shadow-blue-500/50"
-                            : "bg-white/5 text-white border border-white/20 hover:border-white/40 hover:bg-white/10"
-                        } ${item.qty > stock ? "opacity-50 cursor-not-allowed" : ""}`}>
-                        {item.popular && (
-                          <span className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-400 to-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg">
-                            🔥 Popular
-                          </span>
-                        )}
-                        <div>{item.label}</div>
-                        <div className="text-xs mt-1 opacity-90">₹{item.qty * pricePerID}</div>
-                      </motion.button>
-                    ))}
-                  </div>
-
-                  {/* Custom */}
-                  <div onClick={() => setIsCustom(true)}
-                    className={`p-4 rounded-xl transition-all cursor-pointer mb-4 ${
-                      isCustom ? "bg-gradient-to-r from-blue-600/30 to-cyan-600/20 border-2 border-blue-400" : "bg-white/5 border border-white/20 hover:border-white/40 hover:bg-white/10"
-                    }`}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">Custom</span>
-                      <Input type="number" placeholder="Qty" value={customQty} onChange={(e) => handleCustomQty(e.target.value)}
-                        min={1} max={stock} className="w-20 h-10 text-center bg-slate-900/50 border-white/20 text-white font-bold text-sm placeholder-white/30" disabled={purchaseStatus === "processing"} />
-                      {isCustom && parseInt(customQty) > 0 && (
-                        <span className="text-cyan-300 font-bold ml-auto text-sm">₹{parseInt(customQty) * pricePerID}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Total & Pay */}
-                  {quantity > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-blue-600/30 to-cyan-600/20 border border-blue-400/30 mb-4 backdrop-blur">
-                        <span className="text-white/80 font-medium text-sm">Total</span>
-                        <div className="text-right">
-                          <span className="text-3xl font-bold text-cyan-300 block">₹{totalPrice}</span>
-                          <p className="text-xs text-white/60">{quantity} × ₹{pricePerID}</p>
+                    {/* Transaction ID */}
+                    {orderId && (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4">
+                        <p className="text-xs text-white/60 font-medium mb-1">Transaction ID</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-sm text-cyan-300 flex-1 truncate">{orderId}</p>
+                          <button onClick={() => copyToClipboard(orderId)} className="text-white/40 hover:text-white transition-colors">
+                            <Copy className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
+                    )}
 
-                      <Button onClick={handlePurchase} disabled={purchaseStatus === "processing" || stock === 0 || quantity > stock}
-                        className="w-full h-12 text-base font-bold bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg hover:shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                        {purchaseStatus === "processing" ? (
-                          <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processing...</>
-                        ) : (
-                          <><Sparkles className="w-5 h-5 mr-2" /> Pay ₹{totalPrice} via UPI</>
-                        )}
+                    <div className="flex gap-2 mb-4">
+                      <Button onClick={copyAllCredentials} className="flex-1 h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">
+                        <Copy className="w-4 h-4 mr-2" /> Copy All
                       </Button>
+                      <Button onClick={downloadCSV} className="flex-1 h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">
+                        <Download className="w-4 h-4 mr-2" /> Download
+                      </Button>
+                    </div>
 
-                      <div className="flex items-center justify-center gap-4 mt-4 text-xs text-white/60">
-                        <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-green-400" /> Secure</span>
-                        <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-400" /> Instant</span>
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-blue-400" /> 24/7</span>
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {purchasedAccounts.map((acc, idx) => (
+                        <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05, duration: 0.2 }}
+                          className="bg-white/5 border border-white/10 p-3 rounded-lg backdrop-blur hover:bg-white/10 transition-colors">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-green-300 bg-green-500/20 px-2.5 py-0.5 rounded-full">ID {idx + 1}</span>
+                            <button onClick={() => copyToClipboard(`${acc.username}:${acc.password}${acc.email ? ':' + acc.email : ''}${acc.emailPassword ? ':' + acc.emailPassword : ''}`)} className="text-white/40 hover:text-white transition-colors">
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div><p className="text-white/60 mb-1 font-medium">Username</p><p className="font-mono font-bold text-cyan-300 break-all text-xs">{acc.username}</p></div>
+                            <div><p className="text-white/60 mb-1 font-medium">Password</p><p className="font-mono font-bold text-cyan-300 break-all text-xs">{acc.password}</p></div>
+                            {acc.email && (
+                              <div><p className="text-white/60 mb-1 font-medium">Email</p><p className="font-mono font-bold text-cyan-300 break-all text-xs">{acc.email}</p></div>
+                            )}
+                            {acc.emailPassword && (
+                              <div><p className="text-white/60 mb-1 font-medium">Email Password</p><p className="font-mono font-bold text-cyan-300 break-all text-xs">{acc.emailPassword}</p></div>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <button onClick={() => { setPurchaseStatus("idle"); setPurchasedAccounts([]); setOrderId("") }}
+                      className="w-full mt-4 text-white/70 hover:text-white text-sm py-2 transition-colors font-medium">
+                      ← Get more IDs
+                    </button>
+                  </motion.div>
+                ) : (
+                  /* PURCHASE FORM */
+                  <motion.div key="purchase" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+                    className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl hover:shadow-3xl transition-shadow">
+
+                    {/* Stock Status */}
+                    {stock > 0 && (
+                      <div className="bg-gradient-to-r from-blue-600/30 to-cyan-600/20 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-green-400 shadow-lg shadow-green-500"></div>
+                          <span className="text-sm font-bold text-white">{stock} IDs Available</span>
+                        </div>
+                        {stock <= 20 && (
+                          <span className="text-xs font-bold text-orange-300 bg-orange-500/20 px-3 py-1.5 rounded-full border border-orange-500/30">⚡ Limited Stock</span>
+                        )}
                       </div>
-                    </motion.div>
-                  )}
+                    )}
 
-                  {purchaseStatus === "failed" && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-                      className="mt-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                      <div className="text-sm text-red-200">Payment failed. Try again.</div>
-                    </motion.div>
-                  )}
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            )}
+                    <div className="p-6">
+                      {/* Header */}
+                      <div className="mb-6">
+                        <h3 className="text-2xl font-bold text-white mb-1">How many IDs?</h3>
+                        <p className="text-sm text-blue-300/80">₹{pricePerID} each • Instant delivery • 100% verified</p>
+                      </div>
+
+                      {/* Lookup Option */}
+                      {!lookupMode && (
+                        <button
+                          onClick={() => setLookupMode(true)}
+                          className="text-xs text-blue-300 hover:text-blue-200 mb-4 font-medium"
+                        >
+                          Have a transaction ID? Lookup your IDs →
+                        </button>
+                      )}
+
+                      {lookupMode ? (
+                        /* LOOKUP MODE */
+                        <div className="space-y-3">
+                          <Input
+                            placeholder="Enter transaction ID..."
+                            value={lookupTxnId}
+                            onChange={(e) => setLookupTxnId(e.target.value)}
+                            className="font-mono text-sm"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={handleLookupTransaction}
+                              disabled={lookupLoading}
+                              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600"
+                            >
+                              {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lookup"}
+                            </Button>
+                            <Button
+                              onClick={() => { setLookupMode(false); setLookupTxnId("") }}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              Back
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* PURCHASE MODE */
+                        <>
+
+
+                          {/* Quantity Grid */}
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            {presetQtys.map((item, i) => (
+                              <motion.button key={item.qty}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.05, duration: 0.2 }}
+                                onClick={() => handleSelectQty(item.qty)}
+                                disabled={item.qty > stock || purchaseStatus === "processing"}
+                                className={`p-4 rounded-xl transition-all font-bold text-sm relative group ${!isCustom && selectedQty === item.qty
+                                  ? "bg-gradient-to-br from-blue-600 to-cyan-600 text-white border border-blue-400 shadow-lg shadow-blue-500/50"
+                                  : "bg-white/5 text-white border border-white/20 hover:border-white/40 hover:bg-white/10"
+                                  } ${item.qty > stock ? "opacity-50 cursor-not-allowed" : ""}`}>
+                                {item.popular && (
+                                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-400 to-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg">
+                                    🔥 Popular
+                                  </span>
+                                )}
+                                <div>{item.label}</div>
+                                <div className="text-xs mt-1 opacity-90">₹{item.qty * pricePerID}</div>
+                              </motion.button>
+                            ))}
+                          </div>
+
+                          {/* Custom */}
+                          <div onClick={() => setIsCustom(true)}
+                            className={`p-4 rounded-xl transition-all cursor-pointer mb-4 ${isCustom ? "bg-gradient-to-r from-blue-600/30 to-cyan-600/20 border-2 border-blue-400" : "bg-white/5 border border-white/20 hover:border-white/40 hover:bg-white/10"
+                              }`}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-white">Custom</span>
+                              <Input type="number" placeholder="Qty" value={customQty} onChange={(e) => handleCustomQty(e.target.value)}
+                                min={1} max={stock} className="w-20 h-10 text-center bg-slate-900/50 border-white/20 text-white font-bold text-sm placeholder-white/30" disabled={purchaseStatus === "processing"} />
+                              {isCustom && parseInt(customQty) > 0 && (
+                                <span className="text-cyan-300 font-bold ml-auto text-sm">₹{parseInt(customQty) * pricePerID}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Total & Pay */}
+                          {quantity > 0 && (
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                              <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-blue-600/30 to-cyan-600/20 border border-blue-400/30 mb-4 backdrop-blur">
+                                <span className="text-white/80 font-medium text-sm">Total</span>
+                                <div className="text-right">
+                                  <span className="text-3xl font-bold text-cyan-300 block">₹{totalPrice}</span>
+                                  <p className="text-xs text-white/60">{quantity} × ₹{pricePerID}</p>
+                                </div>
+                              </div>
+
+                              <Button onClick={handlePurchase} disabled={purchaseStatus === "processing" || stock === 0 || quantity > stock}
+                                className="w-full h-12 text-base font-bold bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg hover:shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                {purchaseStatus === "processing" ? (
+                                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processing...</>
+                                ) : (
+                                  <><Sparkles className="w-5 h-5 mr-2" /> Pay ₹{totalPrice} via UPI</>
+                                )}
+                              </Button>
+
+                              <div className="flex items-center justify-center gap-4 mt-4 text-xs text-white/60">
+                                <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-green-400" /> Secure</span>
+                                <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-400" /> Instant</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-blue-400" /> 24/7</span>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {purchaseStatus === "failed" && (
+                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                              className="mt-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                              <div className="text-sm text-red-200">Payment failed. Try again.</div>
+                            </motion.div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
 

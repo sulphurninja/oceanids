@@ -16,6 +16,7 @@ interface AccountInput {
   price: number
   mobileNumber: string
   email: string
+  emailPassword: string
   notes: string
 }
 
@@ -33,6 +34,7 @@ const defaultAccount: AccountInput = {
   price: 400,
   mobileNumber: "",
   email: "",
+  emailPassword: "",
   notes: "",
 }
 
@@ -68,10 +70,10 @@ export default function AddAccountsPage() {
 
   const addAccount = () => {
     const provider = providers.find(p => p.slug === selectedProvider)
-    setAccounts([...accounts, { 
-      ...defaultAccount, 
+    setAccounts([...accounts, {
+      ...defaultAccount,
       provider: selectedProvider,
-      price: provider?.price || 400 
+      price: provider?.price || 400
     }])
   }
 
@@ -117,6 +119,7 @@ export default function AddAccountsPage() {
           price: provider?.price || 400,
           mobileNumber: parts[1]?.trim() || "",
           email: parts[2]?.trim() || "",
+          emailPassword: parts[3]?.trim() || "",
           notes: "",
         })
       }
@@ -241,11 +244,11 @@ export default function AddAccountsPage() {
             <p className="text-xs text-muted-foreground mb-2">
               Format: <code className="bg-muted px-1 rounded">username</code> (one per line)
               <br />
-              Optional: <code className="bg-muted px-1 rounded">username:mobile:email</code>
+              Optional: <code className="bg-muted px-1 rounded">username:mobile:email:emailPassword</code>
             </p>
             <textarea
               className="w-full h-48 p-4 border border-border rounded-xl bg-background font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="user1&#10;user2:9876543210&#10;user3:9876543211:user@email.com"
+              placeholder="user1&#10;user2:9876543210&#10;user3:9876543211:user@email.com:emailPass123"
               value={bulkInput}
               onChange={(e) => setBulkInput(e.target.value)}
             />
@@ -323,6 +326,14 @@ export default function AddAccountsPage() {
                     onChange={(e) => updateAccount(index, "email", e.target.value)}
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium mb-1.5 block">Email Password (optional)</label>
+                  <Input
+                    placeholder="Password for the email account"
+                    value={account.emailPassword}
+                    onChange={(e) => updateAccount(index, "emailPassword", e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           ))}
@@ -342,13 +353,13 @@ export default function AddAccountsPage() {
               Ready to add {accounts.length} account(s)
             </p>
             <p className="text-sm text-muted-foreground">
-              Provider: {currentProvider?.name || selectedProvider} • 
+              Provider: {currentProvider?.name || selectedProvider} •
               Total value: ₹{accounts.reduce((sum, acc) => sum + acc.price, 0).toLocaleString()}
             </p>
           </div>
-          <Button 
-            size="lg" 
-            onClick={handleSubmit} 
+          <Button
+            size="lg"
+            onClick={handleSubmit}
             disabled={submitting}
             className="gradient-ocean text-white border-0"
           >
