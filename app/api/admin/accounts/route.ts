@@ -69,10 +69,10 @@ export async function POST(request: NextRequest) {
 
     // Get provider slug from first account
     const providerSlug = accounts[0].provider || 'irctc';
-    
+
     // Check if provider exists, create default IRCTC if not
     let provider = await Provider.findOne({ slug: providerSlug });
-    
+
     if (!provider) {
       provider = await Provider.create({
         slug: 'irctc',
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       price: acc.price || provider!.price || 400,
       mobileNumber: acc.mobileNumber || '',
       email: acc.email || '',
+      emailPassword: acc.emailPassword || '',
       notes: acc.notes || '',
       status: 'available',
       addedBy: user?.id || null,
@@ -100,13 +101,13 @@ export async function POST(request: NextRequest) {
     // Check for duplicate usernames
     const usernames = accountsToCreate.map(a => a.username);
     const existingAccounts = await Account.find({ username: { $in: usernames } });
-    
+
     if (existingAccounts.length > 0) {
       const existingUsernames = existingAccounts.map((a: any) => a.username);
       return NextResponse.json(
-        { 
-          success: false, 
-          message: `Duplicate usernames found: ${existingUsernames.join(', ')}` 
+        {
+          success: false,
+          message: `Duplicate usernames found: ${existingUsernames.join(', ')}`
         },
         { status: 400 }
       );
